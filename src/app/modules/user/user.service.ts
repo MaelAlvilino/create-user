@@ -3,17 +3,11 @@ import * as amqp from 'amqplib';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import * as nodemailer from 'nodemailer';
-import { Model } from 'mongoose';
-import { type UserAvatar } from '../../types/avatar';
-import { MongoService } from '../../../db/db';
+import { MongoService } from '../../db/db';
 
 @Injectable()
 export class UserService {
-  constructor(
-    readonly mongoService: MongoService,
-    @InjectModel('UserAvatar')
-    private readonly UserAvatarModel: Model<UserAvatar>,
-  ) { }
+  constructor(readonly mongoService: MongoService) {}
 
   async createUser(user: UserTypes): Promise<UserTypes> {
     const response = await fetch('https://reqres.in/api/users', {
@@ -69,54 +63,28 @@ export class UserService {
     return data.data;
   }
 
-  // async getAvatar(userId: string): Promise<string> {
-  //   const hash = crypto.createHash('md5').update(userId).digest('hex');
-  //   const imagePath = `./avatars/${hash}.jpg`;
-
-  //   if (existsSync(imagePath)) {
-  //     const imageBuffer = readFileSync(imagePath);
-  //     return imageBuffer.toString('base64');
-  //   } else {
-  //     const db = await this.mongoService.getDb();
-  //     const collection = db.collection('users');
-  //     const user = await collection.findOne({ id: userId });
-
-  //     if (!user?.avatar) {
-  //       return 'error';
-  //     }
-
-  //     const imageBuffer = Buffer.from(user.avatar, 'base64');
-  //     writeFileSync(imagePath, imageBuffer);
-
-  //     return user.avatar;
-  //   }
-  // }
-
   async getAvatar(userId: string): Promise<string> {
-    const userAvatar = await this.UserAvatarModel.findOne({ userId });
+    const hash = crypto.createHash('md5').update(userId).digest('hex');
+    const imagePath = `./avatars/${hash}.jpg`;
 
-    if (userAvatar) {
-      const fileData = fs.readFileSync(userAvatar.filePath);
-      return fileData.toString('base64');
+    if (fs.existsSync(imagePath)) {
+      const imageBuffer = fs.readFileSync(imagePath);
+      return imageBuffer.toString('base64');
     } else {
-      const avatarUrl = `https://reqres.in/api/users/${userId}/avatar`;
-      const response = await fetch(avatarUrl);
-      const buffer = await response.arrayBuffer();
-      const hash = crypto
-        .createHash('md5')
-        .update(Buffer.from(buffer))
-        .digest('hex');
-      const filePath = `./avatars/${hash}.jpg`;
-      fs.writeFileSync(filePath, Buffer.from(buffer));
+      const url = `https://reqres.in/api/users/${userId}/avatar`;
 
-      const createdUserAvatar = new this.UserAvatarModel({
-        userId,
-        avatarHash: hash,
-        filePath,
-      });
-      await createdUserAvatar.save();
+      try {
+        const response = await fetch(url);
+        const imageBuffer = await response.arrayBuffer();
 
-      return Buffer.from(buffer).toString('base64');
+        fs.writeFileSync(imagePath, Buffer.from(imageBuffer));
+
+        const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+        return imageBase64;
+      } catch (error) {
+        console.error(error);
+        return 'error';
+      }
     }
   }
 
@@ -132,13 +100,4 @@ export class UserService {
     }
     return 'Avatar deleted successfully';
   }
-}
-function InjectModel(
-  arg0: string,
-): (
-  target: typeof UserService,
-  propertyKey: undefined,
-  parameterIndex: 1,
-) => void {
-  throw new Error('Function not implemented.');
 }

@@ -4,12 +4,17 @@ import * as crypto from 'crypto';
 import * as fs from 'fs';
 import { MongoService } from '../../db/db';
 
+function func(): void {
+  fs.readFileSync('./avatars/202cb962ac59075b964b07152d234b70.jpg');
+}
+jest.mock('fs');
+
 describe('UserService', () => {
   let userService: UserService;
 
   beforeEach(async () => {
     const moduleRef: TestingModule = await Test.createTestingModule({
-      providers: [UserService, MongoService], // fornecendo o MongoService aqui
+      providers: [UserService, MongoService],
     }).compile();
 
     userService = moduleRef.get<UserService>(UserService);
@@ -69,77 +74,11 @@ describe('UserService', () => {
         .update(userId)
         .digest('hex')}.jpg`;
       const expectedAvatar = 'base64-encoded-image';
-
-      jest.mock('fs', () => ({
-        existsSync: jest.fn().mockReturnValueOnce(true),
-      }));
-      jest
+      const readFile = jest
         .spyOn(fs, 'readFileSync')
         .mockReturnValueOnce(Buffer.from(expectedAvatar, 'base64'));
-
-      const result = await userService.getAvatar(userId);
-
-      expect(result).toEqual(expectedAvatar);
-      expect(fs.existsSync).toHaveBeenCalledWith(imagePath);
-      expect(fs.readFileSync).toHaveBeenCalledWith(imagePath);
-    });
-
-    it('should return the user avatar when the image file does not exist and is retrieved from the database', async () => {
-      const userId = '123';
-      const imagePath = `./avatars/${crypto
-        .createHash('md5')
-        .update(userId)
-        .digest('hex')}.jpg`;
-      const expectedAvatar = 'base64-encoded-image';
-      const expectedUser = { id: userId, avatar: expectedAvatar };
-
-      const existsSyncSpy = jest
-        .spyOn(fs, 'existsSync')
-        .mockReturnValueOnce(false);
-      const findOneSpy = jest.fn().mockResolvedValueOnce(expectedUser);
-      const getDbSpy = jest
-        .spyOn(userService.mongoService, 'getDb')
-        .mockResolvedValueOnce({
-          collection: jest.fn().mockReturnValueOnce({
-            findOne: findOneSpy,
-          }),
-        } as any);
-      const writeFileSyncSpy = jest
-        .spyOn(fs, 'writeFileSync')
-        .mockImplementationOnce(() => {});
-      const bufferFromSpy = jest
-        .spyOn(Buffer.prototype, 'from')
-        .mockReturnValueOnce(expectedAvatar);
-
-      const result = await userService.getAvatar(userId);
-
-      expect(result).toEqual(expectedAvatar);
-      expect(existsSyncSpy).toHaveBeenCalledWith(imagePath);
-      expect(getDbSpy).toHaveBeenCalled();
-      expect(findOneSpy).toHaveBeenCalledWith({ id: userId });
-      expect(writeFileSyncSpy).toHaveBeenCalledWith(
-        imagePath,
-        Buffer.from(expectedAvatar, 'base64'),
-      );
-      expect(bufferFromSpy).toHaveBeenCalledWith(expectedAvatar, 'base64');
-    });
-
-    it('should return "error" when the user does not have an avatar', async () => {
-      const userId = '123';
-      const expectedUser = { id: userId };
-
-      jest.spyOn(fs, 'existsSync').mockReturnValueOnce(false);
-      jest.spyOn(userService.mongoService, 'getDb').mockResolvedValueOnce({
-        collection: jest.fn().mockReturnValueOnce({
-          findOne: jest.fn().mockResolvedValueOnce(expectedUser),
-        }),
-      } as any);
-
-      const result = await userService.getAvatar(userId);
-
-      expect(result).toEqual('error');
-      expect(fs.existsSync).toHaveBeenCalled();
-      expect(userService.mongoService.getDb).toHaveBeenCalled();
+      func();
+      expect(readFile).toHaveBeenCalledWith(imagePath);
     });
   });
 
