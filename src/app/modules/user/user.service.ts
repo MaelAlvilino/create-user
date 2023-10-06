@@ -19,7 +19,6 @@ export class UserService {
     });
 
     const createdUser = await response.json();
-    console.log(createdUser);
 
     const message = JSON.stringify(createdUser);
     const queue = 'user.created';
